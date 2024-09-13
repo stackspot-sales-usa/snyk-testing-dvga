@@ -1,5 +1,0 @@
-# requirements.txt
-# Add your dependencies here
-
-requests
-requests.auth
