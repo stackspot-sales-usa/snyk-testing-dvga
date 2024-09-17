@@ -80,7 +80,7 @@ def execute_qc_and_get_response(stk_access_token, qc_slug,input_data, file_name)
     if execution_id:
         execution_status = get_execution_status(execution_id, stk_access_token,file_name)
         if execution_status['progress']['status'] == "FAILURE":
-            print(f"Execution failed for file: {file_name} (Execution ID: {execution_id})")
+            print(f"{os.path.basename(file_name)}:--ERROR--! Execution FAILED. Execution ID: {execution_id})")
         return execution_status
     else:
         return None
