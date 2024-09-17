@@ -53,7 +53,7 @@ def create_rqc_execution(qc_slug, stk_access_token, input_data, file_name):
         print(f'{os.path.basename(file_name)} ExecutionID:', response_data)
         return response_data
     else:
-        print(f'{file_name}stackspot create rqc api response:{response.status_code}')
+        print(f'{file_name} stackspot create rqc api response:{response.status_code}')
         return None
 
 def get_execution_status(execution_id, stk_access_token,file_name):
@@ -66,7 +66,7 @@ def get_execution_status(execution_id, stk_access_token,file_name):
         response = requests.get(url, headers=headers)
         response_data = response.json()
         status = response_data['progress']['status']
-        if status in ['COMPLETED', 'FAILED']:
+        if status in ['COMPLETED', 'FAILURE']:
             print(f"{os.path.basename(file_name)}: Execution complete!")
             return response_data
         else:
@@ -79,6 +79,8 @@ def execute_qc_and_get_response(stk_access_token, qc_slug,input_data, file_name)
     execution_id = create_rqc_execution(qc_slug, stk_access_token, input_data, file_name)
     if execution_id:
         execution_status = get_execution_status(execution_id, stk_access_token,file_name)
+        if execution_status['progress']['status'] == "FAILURE":
+            print(f"Execution failed for file: {file_name} (Execution ID: {execution_id})")
         return execution_status
     else:
         return None
@@ -112,7 +114,7 @@ def process_file(file_name, file_code, stk_access_token, qc_slug, repo_owner, re
         create_issues(file_name, title, body, repo_owner, repo_name, gh_access_token, JIRA_API_TOKEN)
 
 def sanitize_code(code):
-    # Remove comments and strip extra whitespaces
+    # Remove comments and strip extra whitespace
     sanitized_lines = []
     for line in code.split('\n'):
         # Remove comments
