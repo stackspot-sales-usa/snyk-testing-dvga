@@ -112,7 +112,7 @@ def process_file(file_name, file_code, stk_access_token, qc_slug, repo_owner, re
         create_issues(file_name, title, body, repo_owner, repo_name, gh_access_token, JIRA_API_TOKEN)
 
 def sanitize_code(code):
-    # Remove comments and strip extra whitespace
+    # Remove comments and strip extra whitespaces
     sanitized_lines = []
     for line in code.split('\n'):
         # Remove comments
