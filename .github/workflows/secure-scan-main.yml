@@ -1,4 +1,4 @@
-name: Find Vulnerabilties in branch:main
+name: Find Vulnerabilties in branch:master
 
 on:
     workflow_dispatch:
