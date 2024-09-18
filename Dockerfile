@@ -1,4 +1,4 @@
-FROM python:3.7-alpine
+FROM python:3.13.0rc1-alpine
 
 LABEL description="Damn Vulnerable GraphQL Application"
 LABEL github="https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application"
