@@ -80,13 +80,12 @@ def execute_qc_and_get_response(stk_access_token, qc_slug,input_data, file_name)
     if execution_id:
         execution_status = get_execution_status(execution_id, stk_access_token,file_name)
         if execution_status['progress']['status'] == "FAILURE":
-            print(f"{os.path.basename(file_name)}:--ERROR--! Execution FAILED. Execution ID: {execution_id})")
+            print(f"Execution failed for file: {file_name} (Execution ID: {execution_id})")
         return execution_status
     else:
         return None
     
 def process_file(file_name, file_code, stk_access_token, qc_slug, repo_owner, repo_name, gh_access_token, JIRA_API_TOKEN):
-    global safety
     print(f"Started processing file: {os.path.basename(file_name)}")
     if not file_code:  # Check if the file code is empty
         print(f"Skipping empty file: {file_name}")
@@ -98,20 +97,16 @@ def process_file(file_name, file_code, stk_access_token, qc_slug, repo_owner, re
         print(f"Error processing file {file_name}: {e}")
         print(f'This was the response from Stackspot AI: {response}')
         return
-    #print("________________This is the response from Stackspot AI:___________")
-    #print(response)
 
     print(f"{os.path.basename(file_name)} has been PROCESSED")
     # in my rqc step 3 represents if it secure, true, or unsecure, false.
-    answer_step_3 = response['steps'][3]['step_result']['answer']
-    answer_step_4 = response['steps'][4]['step_result']['answer']  # code fix suggestion, aka issue body
-    body = answer_step_4
-    print(f"{os.path.basename(file_name)}: Is the file secure?: {answer_step_3}")
+    issue_dict=process_api_response_to_issue_dict(response, os.path.basename(file_name))
+    for title,body in issue_dict.items():
+        '''title=json.dumps(title)
+        body=json.dumps(body)'''
 
-    if answer_step_3 == "no":  # if the code is unsafe, this will create an issue including the code suggestions
-        safety = False
-        title = f"Issue in file: {os.path.basename(file_name)}"
-        create_issues(file_name, title, body, repo_owner, repo_name, gh_access_token, JIRA_API_TOKEN)
+        create_jira_issue(title, body, JIRA_API_TOKEN, file_name)
+
 
 def sanitize_code(code):
     # Remove comments and strip extra whitespace
@@ -198,7 +193,7 @@ def get_commit_files(repo_owner, repo_name, commit_sha, gh_access_token):
     
     return result
 
-def create_jira_issue(issue_title, issue_description, JIRA_API_TOKEN):
+def create_jira_issue(issue_title, issue_description, JIRA_API_TOKEN,file_name):
     JIRA_INSTANCE_URL = 'https://stackspot-sales-us.atlassian.net'
     USERNAME = 'lucas.vicenzotto@stackspot.com'
     PROJECT_KEY = 'POC'
@@ -225,30 +220,19 @@ def create_jira_issue(issue_title, issue_description, JIRA_API_TOKEN):
     response = requests.post(url, headers=headers, auth=auth, data=json.dumps(payload))
     if response.status_code == 201:
         print("Jira issue created successfully.")
-        return response.json()
+        jira_issue = response.json()
+        issue_key = jira_issue.get('key')
+        
+        # Construct the Jira issue URL
+        jira_issue_url = f"{JIRA_INSTANCE_URL}/browse/{issue_key}"
+        print(f"{os.path.basename(file_name)} Jira Issue URL: {jira_issue_url}")
+        
+        return jira_issue
     else:
+        # Handle failure to create the issue
         print(f"Failed to create Jira issue. Status code: {response.status_code}")
         print(response.text)
         return None
-
-def create_issues(file_name, title, body, repo_owner, repo_name, gh_access_token, JIRA_API_TOKEN):
-    print(f'Creating issues for {file_name}.')
-    '''
-    try:
-        gh_issue = create_github_issue(repo_owner, repo_name, title, body, gh_access_token)
-        if gh_issue:
-            print(f"Github Issue URL: {gh_issue['html_url']}")
-    except Exception as e:
-        print(f"Error creating GitHub issue for file {file_name}: {e}")
-'''
-    try:
-        jira_issue = create_jira_issue(title, body, JIRA_API_TOKEN)
-        if jira_issue:
-            issue_key = jira_issue['key']
-            jira_issue_url = f"https://stackspot-sales-us.atlassian.net/browse/{issue_key}"
-            print(f"Jira Issue URL: {jira_issue_url}")
-    except Exception as e:
-        print(f"Error creating Jira issue: {e}")
 
 def get_pull_request_files(repo_owner, repo_name, pull_number, github_token):
     # GitHub API URL to get the list of files in a pull request
@@ -294,3 +278,22 @@ def get_last_pull_request_number(repo_owner, repo_name, github_token):
         return pull_requests[0]['number']  # Return the number of the most recent pull request
     else:
         return None
+
+def process_api_response_to_issue_dict(response, file_name):
+    # Execute the Quick Command and get the response
+    unfiltered_result = response.get('result')
+
+    try:
+        # Remove leading and trailing backticks and "json" tag if present
+        if unfiltered_result.startswith("```json"):
+            unfiltered_result = unfiltered_result[7:-4].strip()
+        result_list = json.loads(unfiltered_result)
+    except json.JSONDecodeError as e:
+        print(f"Invalid JSON format: {e}")
+    i=0
+    issue_dict={}
+    for body in result_list:
+        i+=1
+        title=f'Issue #{i} in file: {os.path.basename(file_name)}'
+        issue_dict[title]=body
+    return issue_dict
