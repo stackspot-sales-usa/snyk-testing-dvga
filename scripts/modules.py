@@ -294,6 +294,6 @@ def process_api_response_to_issue_dict(response, file_name):
     issue_dict={}
     for body in result_list:
         i+=1
-        title=f'Issue #{i} in file:{os.path.basename(file_name)}'
+        title=f'Issue #{i} in file: {os.path.basename(file_name)}'
         issue_dict[title]=body
     return issue_dict

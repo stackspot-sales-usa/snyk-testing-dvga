@@ -14,7 +14,7 @@ gh_access_token = get_env_variable("GH_TOKEN")
 JIRA_API_TOKEN = get_env_variable("JIRA_API_TOKEN")
 
 stk_access_token = get_stk_bearer_token(client_id, client_secret, realm)
-qc_slug = "poc-foxconn"
+qc_slug = "poc-foxconn-by-ticket"
 repo_owner = "stackspot-sales-usa"
 repo_name = "mvp-sec-issue-ticket"
 
@@ -25,6 +25,8 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
     futures = [
         executor.submit(
             process_file, file_name, file_code, stk_access_token, qc_slug, repo_owner, repo_name, gh_access_token, JIRA_API_TOKEN
+        
+            
         )
         for file_name, file_code in code_dict.items()
     ]
