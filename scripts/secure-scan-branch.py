@@ -19,7 +19,7 @@ repo_owner = "stackspot-sales-usa"
 repo_name = "mvp-sec-issue-ticket"
 
 repo_path = os.getenv("GITHUB_WORKSPACE", ".")
-code_dict = read_all_files_in_repo(repo_path)
+code_dict = read_select_files_in_repo(repo_path)
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
     futures = [

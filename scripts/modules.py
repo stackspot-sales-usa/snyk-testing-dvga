@@ -6,7 +6,7 @@ import sys
 import concurrent.futures
 from requests.auth import HTTPBasicAuth
 import time
-
+import yaml
 
 def get_env_variable(var_name):
     value = os.getenv(var_name)
@@ -145,30 +145,38 @@ def create_github_issue(repo_owner, repo_name, title, body, gh_access_token):
     else:
         print("Github issue created successfully.")
         return response.json()
+    
+def is_file_allowed(file_name, yaml_file):
+    """ Load rules from a YAML file and check if a file is allowed based on the rules. """
+    with open(yaml_file, "r") as file:
+        rules = yaml.safe_load(file)
+    return (file_name in rules['explicit_allow_list'] or any(file_name.endswith(ext) for ext in rules['implicit_allow_extensions'])) and \
+           file_name not in rules['explicit_deny_list']
 
-def read_all_files_in_repo(repo_path):
+def read_select_files_in_repo(repo_path):
+    """ Reads and selects files in the repository based on YAML rules. """
     # Get the GitHub workspace directory
     github_workspace = os.getenv('GITHUB_WORKSPACE', repo_path)
-    # Construct the full path to the define-scannable-files.txt file
-    scannable_files_path = os.path.join(github_workspace, 'scripts/define-scannable-files.txt')
-    # Read the scannable file extensions from the define-scannable-files.txt file
-    with open(scannable_files_path, 'r') as f:
-        scannable_extensions = [line.strip() for line in f.readlines() if line.strip()]
+    
+    # Path to the YAML file containing the rules
+    yaml_file = os.path.join(github_workspace, 'scripts/define-scannable-files.yaml')
+    
     code_dict = {}
+    
+    # Walk through the repository directory
     for root, dirs, files in os.walk(repo_path):
-        
         for file in files:
-            file_extension = os.path.splitext(file)[1]
-            if file_extension not in scannable_extensions:
+            # Check if the file is allowed based on the YAML rules
+            if not is_file_allowed(file, yaml_file):
                 continue
             
-            print(f'THIS FILE WILL BE ANALYZED:{file}')
-
-            file_path = os.path.join(root, file)
+            print(f'THIS FILE WILL BE ANALYZED: {file}')
             
+            # Read the file content and store it in the dictionary
+            file_path = os.path.join(root, file)
             with open(file_path, 'r', encoding='utf-8') as f:
-                code_dict[file_path] = sanitize_code( f.read())
-
+                code_dict[file_path] = sanitize_code(f.read())
+    
     return code_dict
 
 def get_commit_files(repo_owner, repo_name, commit_sha, gh_access_token):
@@ -297,3 +305,17 @@ def process_api_response_to_issue_dict(response, file_name):
         title=f'Issue #{i} in file: {os.path.basename(file_name)}'
         issue_dict[title]=body
     return issue_dict
+def is_file_allowed(file_name, yaml_file):
+    """ 
+    Load rules from a YAML file and check if a file is allowed based on the rules.
+    
+    :param file_name: The name of the file to check.
+    :param yaml_file: The path to the YAML file containing the rules.
+    :return: True if the file is allowed, False if denied.
+    """
+    with open(yaml_file, "r") as file:
+        rules = yaml.safe_load(file)
+    
+    return (file_name in rules['explicit_allow_list'] or 
+            any(file_name.endswith(ext) for ext in rules['implicit_allow_extensions'])) and \
+           file_name not in rules['explicit_deny_list']
